@@ -7,6 +7,9 @@ Citations: flutter.dev
 
 
 import 'package:flutter/material.dart';
+import 'package:concierge_app/widgets/NavBar.dart';
+import 'package:concierge_app/pages/patient/PatientHomePage.dart';
+import 'package:concierge_app/pages/patient/PatientChat.dart';
 
 class PatientTrackerPage extends StatefulWidget {
   const PatientTrackerPage({super.key});
@@ -16,7 +19,6 @@ class PatientTrackerPage extends StatefulWidget {
 }
 
 class _PatientTrackerPageState extends State<PatientTrackerPage> {
-
   int _pain = 2;
   int _fatigue = 2;
   int _mood = 7;
@@ -42,6 +44,16 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
   Color _painColor(int v)    => v <= 3 ? _accent : v <= 6 ? _amber : _red;
   Color _moodColor(int v)    => v >= 7 ? _accent : v >= 4 ? _amber : _red;
   Color _feverColor(double v) => v < 99 ? _accent : v < 100.4 ? _amber : _red;
+
+  void _onNavTap(int index){
+    if (index == 0) {
+      Navigator.pushReplacement(context,
+      MaterialPageRoute(builder: (_) => const PatientHomePage()));
+    } else if (index == 1){
+      Navigator.pushReplacement(context,
+      MaterialPageRoute(builder: (_) => const PatientChatPage()));
+    };
+  }
 
   Future<void> _save() async {
     setState(() { _saving = true; });
@@ -70,6 +82,11 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      bottomNavigationBar: NavBar(
+        selectedIndex: 2,
+        onTap: _onNavTap,
+        isDoctor: false,
+      ),
       backgroundColor: _bg,
       appBar: AppBar(
         backgroundColor: _bg,
