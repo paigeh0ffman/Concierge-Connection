@@ -12,7 +12,20 @@ final supabase = Supabase.instance.client;
 
 // Auth functions
 Future<void> signUp(String email, String password) async {
-  await supabase.auth.signUp(email: email, password: password);
+  final response = await supabase.auth.signUp(
+    email: email,
+    password: password,
+  );
+
+  final user = response.user;
+
+  if (user != null) {
+    await supabase.from('profiles').insert({
+      'id': user.id,
+      'email': email,
+      'role': 'patient',
+    });
+  }
 }
 
 Future<void> signIn(String email, String password) async {
