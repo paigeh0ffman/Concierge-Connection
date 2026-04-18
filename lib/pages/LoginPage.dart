@@ -7,6 +7,8 @@ Citations: flutter.dev, Claude.ai
 
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:concierge_app/pages/doctor/DoctorHomePage.dart';
+import 'package:concierge_app/pages/patient/PatientHomePage.dart';
 
 final supabase = Supabase.instance.client;
 
@@ -23,7 +25,7 @@ Future<void> signUp(String email, String password) async {
     await supabase.from('profiles').insert({
       'id': user.id,
       'email': email,
-      'role': 'patient',
+      'role': 'doctor',
     });
   }
 }
@@ -105,6 +107,23 @@ class _LoginPageState extends State<LoginPage>
             backgroundColor: const Color(0xFF00C9A7),
           ),
         );
+        final userID = supabase.auth.currentUser!.id;
+        final profile = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userID)
+        .single();
+        final role = profile['role'] as String;
+
+        if (mounted){
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => role == 'doctor' 
+              ? const DoctorHomePage()
+              :  const PatientHomePage(),
+            ),
+          );
+        }
       }
     } on AuthException catch (e) {
       setState(() => _errorMsg = e.message);
