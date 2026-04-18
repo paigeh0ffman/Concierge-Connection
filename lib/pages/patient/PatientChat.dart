@@ -1,4 +1,4 @@
-/* Practitioner messenger view
+/* Patient-side messenger view
 
 Authors: Paige Hoffman
 
@@ -7,13 +7,13 @@ Citations: flutter.dev
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-class DoctorChatPage extends StatelessWidget {
-  const DoctorChatPage({super.key});
+class PatientChatPage extends StatelessWidget {
+  const PatientChatPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(child: Text('Doctor Messenger')),
+      body: Center(child: Text('Patient Chat')),
     );
   }
 }
