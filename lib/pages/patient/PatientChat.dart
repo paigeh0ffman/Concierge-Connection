@@ -1,14 +1,17 @@
-/* Patient-side messenger view
+/* Patient Chat Page
 
 Authors: Paige Hoffman
 
-Citations: flutter.dev
+Citations: flutter.dev, Claude.ai
  */
+
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:concierge_app/widgets/NavBar.dart';
-import 'package:concierge_app/pages/patient/PatientTracker.dart';
 import 'package:concierge_app/pages/patient/PatientHomePage.dart';
+import 'package:concierge_app/pages/patient/PatientTracker.dart';
+import 'package:concierge_app/widgets/NavBar.dart';
+
+final supabase = Supabase.instance.client;
 
 class PatientChatPage extends StatefulWidget {
   const PatientChatPage({super.key});
@@ -18,20 +21,201 @@ class PatientChatPage extends StatefulWidget {
 }
 
 class _PatientChatPageState extends State<PatientChatPage> {
-  void _onNavTap(int index){
-    if (index == 0) {
-      Navigator.pushReplacement(context,
-      MaterialPageRoute(builder: (_) => const PatientHomePage()));
-    } else if (index == 2){
-      Navigator.pushReplacement(context,
-      MaterialPageRoute(builder: (_) => const PatientTrackerPage()));
-    };
+  static const _bg          = Color(0xFF0D0D14);
+  static const _card        = Color(0xFF16161F);
+  static const _accent      = Color(0xFF00C9A7);
+  static const _textPrimary = Color(0xFFF0F0F6);
+  static const _textMuted   = Color(0xFF6B6B80);
+  static const _border      = Color(0xFF2A2A38);
+
+  final _msgCtrl    = TextEditingController();
+  final _scrollCtrl = ScrollController();
+
+  // Placeholder — replace with Supabase realtime later
+  final List<Map<String, dynamic>> _messages = [
+    {'text': 'Hi, how are you feeling today?', 'isMe': false, 'time': '9:00 AM'},
+    {'text': 'My pain has been a 7/10 today.', 'isMe': true,  'time': '9:01 AM'},
+    {'text': 'Thanks for the update. Are you taking your medication?', 'isMe': false, 'time': '9:03 AM'},
+    {'text': 'Yes, twice a day as prescribed.', 'isMe': true,  'time': '9:04 AM'},
+  ];
+
+  void _onNavTap(int index) {
+    if (index == 0) Navigator.pushReplacement(context,
+        MaterialPageRoute(builder: (_) => const PatientHomePage()));
+    if (index == 2) Navigator.pushReplacement(context,
+        MaterialPageRoute(builder: (_) => const PatientTrackerPage()));
   }
 
-  @override 
-  Widget build(BuildContext context){
+  void _sendMessage() {
+    final text = _msgCtrl.text.trim();
+    if (text.isEmpty) return;
+    setState(() {
+      _messages.add({'text': text, 'isMe': true, 'time': 'Now'});
+      _msgCtrl.clear();
+    });
+    Future.delayed(const Duration(milliseconds: 100), () {
+      _scrollCtrl.animateTo(
+        _scrollCtrl.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _msgCtrl.dispose();
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(child: Text('Patient Chat')),
+      backgroundColor: _bg,
+      appBar: AppBar(
+        backgroundColor: _card,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Row(
+          children: [
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                color: _accent.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: _accent.withOpacity(0.3)),
+              ),
+              child: const Icon(Icons.person_rounded, color: _accent, size: 20),
+            ),
+            const SizedBox(width: 10),
+            const Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Your Doctor',
+                    style: TextStyle(
+                        color: _textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.3)),
+                Text('Care team',
+                    style: TextStyle(color: _textMuted, fontSize: 11)),
+              ],
+            ),
+          ],
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: _border),
+        ),
+      ),
+      body: Column(
+        children: [
+          // ── Message list ───────────────────────────────
+          Expanded(
+            child: _messages.isEmpty
+                ? const Center(
+                    child: Text('No messages yet',
+                        style: TextStyle(color: _textMuted)))
+                : ListView.builder(
+                    controller: _scrollCtrl,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
+                    itemCount: _messages.length,
+                    itemBuilder: (_, i) {
+                      final msg = _messages[i];
+                      final isMe = msg['isMe'] as bool;
+                      return Align(
+                        alignment: isMe
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 10),
+                          constraints: BoxConstraints(
+                              maxWidth:
+                                  MediaQuery.of(context).size.width * 0.7),
+                          decoration: BoxDecoration(
+                            color: isMe
+                                ? _accent.withOpacity(0.15)
+                                : _card,
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(14),
+                              topRight: const Radius.circular(14),
+                              bottomLeft: Radius.circular(isMe ? 14 : 4),
+                              bottomRight: Radius.circular(isMe ? 4 : 14),
+                            ),
+                            border: Border.all(
+                                color: isMe
+                                    ? _accent.withOpacity(0.3)
+                                    : _border),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: isMe
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start,
+                            children: [
+                              Text(msg['text'],
+                                  style: const TextStyle(
+                                      color: _textPrimary, fontSize: 14)),
+                              const SizedBox(height: 4),
+                              Text(msg['time'],
+                                  style: const TextStyle(
+                                      color: _textMuted, fontSize: 10)),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+          ),
+
+          // ── Input bar ──────────────────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(16, 10, 16, 16),
+            decoration: BoxDecoration(
+              color: _card,
+              border: Border(top: BorderSide(color: _border)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _msgCtrl,
+                    style: const TextStyle(color: _textPrimary, fontSize: 14),
+                    decoration: InputDecoration(
+                      hintText: 'Message your doctor...',
+                      hintStyle:
+                          const TextStyle(color: _textMuted, fontSize: 14),
+                      filled: true,
+                      fillColor: _bg,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide.none),
+                    ),
+                    onSubmitted: (_) => _sendMessage(),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                GestureDetector(
+                  onTap: _sendMessage,
+                  child: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: _accent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.send_rounded, color: _bg, size: 20),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       bottomNavigationBar: NavBar(
         selectedIndex: 1,
         onTap: _onNavTap,
