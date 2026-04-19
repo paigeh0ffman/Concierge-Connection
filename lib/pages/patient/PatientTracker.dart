@@ -1,15 +1,13 @@
 /* Patient data view
-
-Authors: Paige Hoffman, Dhwani Parekh
-
+Authors: Dhwani Parekh, Paige Hoffman
 Citations: flutter.dev
- */
-
+*/
 
 import 'package:flutter/material.dart';
 import 'package:concierge_app/widgets/NavBar.dart';
 import 'package:concierge_app/pages/patient/PatientHomePage.dart';
 import 'package:concierge_app/pages/patient/PatientChat.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PatientTrackerPage extends StatefulWidget {
   const PatientTrackerPage({super.key});
@@ -19,15 +17,15 @@ class PatientTrackerPage extends StatefulWidget {
 }
 
 class _PatientTrackerPageState extends State<PatientTrackerPage> {
-  int _pain = 2;
-  int _fatigue = 2;
-  int _mood = 7;
-  double _sleep = 7.5;
-  double _fever = 98.2;
 
-  final _dietCtrl     = TextEditingController();
-  final _exerciseCtrl = TextEditingController();
-  final _notesCtrl    = TextEditingController();
+  // ── Migraine fields ───────────────────────────────────────
+  int _pain = 0;
+  double _timeElapsed = 0;
+  bool _aura = false;
+  bool _tinnitus = false;
+  int _nausea = 0;
+  int _photosensitivity = 0;
+  final _notesCtrl = TextEditingController();
 
   bool _saving = false;
   bool _saved  = false;
@@ -41,41 +39,74 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
   static const _red         = Color(0xFFFF5C5C);
   static const _amber       = Color(0xFFFFB347);
 
-  Color _painColor(int v)    => v <= 3 ? _accent : v <= 6 ? _amber : _red;
-  Color _moodColor(int v)    => v >= 7 ? _accent : v >= 4 ? _amber : _red;
-  Color _feverColor(double v) => v < 99 ? _accent : v < 100.4 ? _amber : _red;
+  Color _painColor(int v) =>
+      v <= 3 ? _accent : v <= 6 ? _amber : _red;
 
-  void _onNavTap(int index){
+  void _onNavTap(int index) {
     if (index == 0) {
       Navigator.pushReplacement(context,
-      MaterialPageRoute(builder: (_) => const PatientHomePage()));
-    } else if (index == 1){
+          MaterialPageRoute(builder: (_) => const PatientHomePage()));
+    } else if (index == 1) {
       Navigator.pushReplacement(context,
-      MaterialPageRoute(builder: (_) => const PatientChatPage()));
-    };
+          MaterialPageRoute(builder: (_) => const PatientChatPage()));
+    }
+  }
+
+  int _calculateHealthScore() {
+    final raw = 100
+        - (_pain * 6)
+        - (_nausea * 3)
+        - (_photosensitivity * 3)
+        - (_aura ? 10 : 0)
+        - (_tinnitus ? 5 : 0);
+    return raw.clamp(0, 100);
   }
 
   Future<void> _save() async {
     setState(() { _saving = true; });
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) setState(() { _saving = false; _saved = true; });
-    await Future.delayed(const Duration(seconds: 3));
-    if (mounted) setState(() { _saved = false; });
+    try {
+      final userId = Supabase.instance.client.auth.currentUser!.id;
+      await Supabase.instance.client.from('logs').insert({
+        'user_id': userId,
+        'date': DateTime.now().toIso8601String().split('T')[0],
+        'pain': _pain,
+        'time_elapsed': _timeElapsed,
+        'aura': _aura,
+        'tinnitus': _tinnitus,
+        'nausea': _nausea,
+        'photosensitivity': _photosensitivity,
+        'notes': _notesCtrl.text.trim(),
+        'health_score': _calculateHealthScore(),
+      });
+      if (mounted) setState(() { _saved = true; });
+      await Future.delayed(const Duration(seconds: 3));
+      if (mounted) setState(() { _saved = false; });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not save: $e'),
+            backgroundColor: _red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() { _saving = false; });
+    }
   }
 
   @override
   void dispose() {
-    _dietCtrl.dispose();
-    _exerciseCtrl.dispose();
     _notesCtrl.dispose();
     super.dispose();
   }
 
   String _todayDate() {
     final now = DateTime.now();
-    const months = ['','January','February','March','April','May','June',
-      'July','August','September','October','November','December'];
-    const days = ['','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+    const months = ['','January','February','March','April','May',
+      'June','July','August','September','October','November','December'];
+    const days = ['','Monday','Tuesday','Wednesday',
+      'Thursday','Friday','Saturday','Sunday'];
     return '${days[now.weekday]}, ${months[now.month]} ${now.day}';
   }
 
@@ -94,18 +125,16 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Today's Check-in",
+            const Text('Migraine Tracker',
               style: TextStyle(
                 color: _textPrimary,
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
             ),
-            Text(
-              _todayDate(),
-              style: const TextStyle(color: _textMuted, fontSize: 12),
-            ),
+            Text(_todayDate(),
+              style: const TextStyle(
+                color: _textMuted, fontSize: 12)),
           ],
         ),
       ),
@@ -115,80 +144,87 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
 
-            _sectionLabel('How are you feeling?'),
+            // ── Pain + Duration ──────────────────────────────
+            _sectionLabel('Pain'),
             _buildCard([
               _sliderRow(
-                label: 'Pain level',
+                label: 'Pain intensity',
                 value: _pain.toDouble(),
                 min: 0, max: 10, divisions: 10,
                 display: '$_pain / 10',
                 color: _painColor(_pain),
-                onChanged: (v) => setState(() => _pain = v.round()),
+                onChanged: (v) =>
+                    setState(() => _pain = v.round()),
               ),
               _divider(),
               _sliderRow(
-                label: 'Fatigue level',
-                value: _fatigue.toDouble(),
-                min: 0, max: 10, divisions: 10,
-                display: '$_fatigue / 10',
-                color: _painColor(_fatigue),
-                onChanged: (v) => setState(() => _fatigue = v.round()),
-              ),
-              _divider(),
-              _sliderRow(
-                label: 'Mood',
-                value: _mood.toDouble(),
-                min: 0, max: 10, divisions: 10,
-                display: '$_mood / 10',
-                color: _moodColor(_mood),
-                onChanged: (v) => setState(() => _mood = v.round()),
-              ),
-              _divider(),
-              _sliderRow(
-                label: 'Sleep last night',
-                value: _sleep,
-                min: 0, max: 12, divisions: 24,
-                display: '${_sleep.toStringAsFixed(1)} h',
+                label: 'Time elapsed (hours)',
+                value: _timeElapsed,
+                min: 0, max: 72, divisions: 144,
+                display: '${_timeElapsed.toStringAsFixed(1)} h',
                 color: _accent,
-                onChanged: (v) => setState(() => _sleep = v),
+                onChanged: (v) => setState(() =>
+                    _timeElapsed =
+                        double.parse(v.toStringAsFixed(1))),
+              ),
+            ]),
+
+            const SizedBox(height: 16),
+
+            // ── Yes/No Symptoms ──────────────────────────────
+            _sectionLabel('Symptoms present'),
+            _buildCard([
+              _toggleRow(
+                label: 'Aura',
+                subtitle: 'Visual disturbances before migraine',
+                value: _aura,
+                onChanged: (v) => setState(() => _aura = v),
+              ),
+              _divider(),
+              _toggleRow(
+                label: 'Tinnitus',
+                subtitle: 'Ringing or buzzing in ears',
+                value: _tinnitus,
+                onChanged: (v) => setState(() => _tinnitus = v),
+              ),
+            ]),
+
+            const SizedBox(height: 16),
+
+            // ── Severity ─────────────────────────────────────
+            _sectionLabel('Severity'),
+            _buildCard([
+              _sliderRow(
+                label: 'Nausea',
+                value: _nausea.toDouble(),
+                min: 0, max: 10, divisions: 10,
+                display: '$_nausea / 10',
+                color: _painColor(_nausea),
+                onChanged: (v) =>
+                    setState(() => _nausea = v.round()),
               ),
               _divider(),
               _sliderRow(
-                label: 'Fever (°F)',
-                value: _fever,
-                min: 96, max: 104, divisions: 80,
-                display: '${_fever.toStringAsFixed(1)} °F',
-                color: _feverColor(_fever),
+                label: 'Photosensitivity',
+                value: _photosensitivity.toDouble(),
+                min: 0, max: 10, divisions: 10,
+                display: '$_photosensitivity / 10',
+                color: _painColor(_photosensitivity),
                 onChanged: (v) => setState(
-                  () => _fever = double.parse(v.toStringAsFixed(1))),
+                    () => _photosensitivity = v.round()),
               ),
             ]),
 
             const SizedBox(height: 16),
-            _sectionLabel('Lifestyle'),
-            _buildCard([
-              _textField(
-                ctrl: _dietCtrl,
-                label: 'Diet today',
-                hint: 'e.g. Rice, soup, vegetables...',
-                icon: Icons.restaurant_outlined,
-              ),
-              const SizedBox(height: 12),
-              _textField(
-                ctrl: _exerciseCtrl,
-                label: 'Exercise',
-                hint: 'e.g. 30min walk, yoga, none...',
-                icon: Icons.directions_run_outlined,
-              ),
-            ]),
 
-            const SizedBox(height: 16),
+            // ── Notes ────────────────────────────────────────
             _sectionLabel('Notes for your doctor'),
             _buildCard([
               _textField(
                 ctrl: _notesCtrl,
-                label: 'Any symptoms or observations',
-                hint: 'How are you feeling overall?',
+                label: 'Additional observations',
+                hint:
+                    'Triggers, medications taken, anything unusual...',
                 icon: Icons.notes_outlined,
                 maxLines: 4,
               ),
@@ -196,6 +232,7 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
 
             const SizedBox(height: 24),
 
+            // ── Save ─────────────────────────────────────────
             SizedBox(
               width: double.infinity,
               height: 52,
@@ -223,7 +260,9 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
                     : Text(
                         _saved ? '✓  Saved!' : "Save today's log",
                         style: TextStyle(
-                          color: _saved ? _accent : const Color(0xFF0D0D14),
+                          color: _saved
+                              ? _accent
+                              : const Color(0xFF0D0D14),
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
                         ),
@@ -240,8 +279,7 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
 
   Widget _sectionLabel(String text) => Padding(
     padding: const EdgeInsets.only(bottom: 10),
-    child: Text(
-      text.toUpperCase(),
+    child: Text(text.toUpperCase(),
       style: const TextStyle(
         color: _textMuted, fontSize: 11,
         fontWeight: FontWeight.w600, letterSpacing: 0.8,
@@ -249,7 +287,8 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
     ),
   );
 
-  Widget _divider() => const Divider(color: _borderColor, height: 16);
+  Widget _divider() =>
+      const Divider(color: _borderColor, height: 20);
 
   Widget _buildCard(List<Widget> children) => Container(
     padding: const EdgeInsets.all(20),
@@ -279,9 +318,11 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: const TextStyle(
-            color: _textMuted, fontSize: 13, fontWeight: FontWeight.w500)),
+            color: _textMuted, fontSize: 13,
+            fontWeight: FontWeight.w500)),
           Text(display, style: TextStyle(
-            color: color, fontSize: 14, fontWeight: FontWeight.w700)),
+            color: color, fontSize: 14,
+            fontWeight: FontWeight.w700)),
         ],
       ),
       SliderTheme(
@@ -289,13 +330,40 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
           activeTrackColor: color,
           inactiveTrackColor: _borderColor,
           thumbColor: color,
-          overlayColor: color.withOpacity(0.15),
+          overlayColor: color.withValues(alpha: 0.15),
           trackHeight: 3,
         ),
         child: Slider(
           value: value, min: min, max: max,
           divisions: divisions, onChanged: onChanged,
         ),
+      ),
+    ],
+  );
+
+  Widget _toggleRow({
+    required String label,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) => Row(
+    children: [
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: const TextStyle(
+              color: _textPrimary, fontSize: 14,
+              fontWeight: FontWeight.w500)),
+            Text(subtitle, style: const TextStyle(
+              color: _textMuted, fontSize: 12)),
+          ],
+        ),
+      ),
+      Switch(
+        value: value,
+        onChanged: onChanged,
+        activeColor: _accent,
       ),
     ],
   );
@@ -310,7 +378,8 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Text(label, style: const TextStyle(
-        color: _textMuted, fontSize: 12, fontWeight: FontWeight.w500)),
+        color: _textMuted, fontSize: 12,
+        fontWeight: FontWeight.w500)),
       const SizedBox(height: 6),
       TextFormField(
         controller: ctrl,
@@ -318,7 +387,8 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
         style: const TextStyle(color: _textPrimary, fontSize: 14),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: const TextStyle(color: _textMuted, fontSize: 13),
+          hintStyle: const TextStyle(
+            color: _textMuted, fontSize: 13),
           prefixIcon: Icon(icon, color: _textMuted, size: 18),
           filled: true,
           fillColor: const Color(0xFF1E1E2A),
@@ -334,7 +404,8 @@ class _PatientTrackerPageState extends State<PatientTrackerPage> {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: _accent, width: 1.5),
+            borderSide: const BorderSide(
+              color: _accent, width: 1.5),
           ),
         ),
       ),
