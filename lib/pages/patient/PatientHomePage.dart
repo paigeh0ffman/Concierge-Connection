@@ -112,25 +112,24 @@ class _PatientHomePageState extends State<PatientHomePage> {
                     const SizedBox(height: 16),
 
                     // Stat cards
-                    Row(
-  children: [
-    Expanded(child: _statCard('Avg Pain',
-      _insights!.avgPain.toStringAsFixed(1), '/10')),
-    const SizedBox(width: 10),
-    Expanded(child: _statCard('Avg Nausea',
-      _insights!.avgNausea.toStringAsFixed(1), '/10')),
-  ],
-),
-const SizedBox(height: 10),
-Row(
-  children: [
-    Expanded(child: _statCard('Aura Episodes',
-      '${_insights!.auraCount}', ' times')),
-    const SizedBox(width: 10),
-    Expanded(child: _statCard('Avg Duration',
-      _insights!.avgTimeElapsed.toStringAsFixed(1), 'h')),
-  ],
-),
+                    GridView.count(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 10, mainAxisSpacing: 10,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      childAspectRatio: 1.6,
+                      children: [
+                        _statCard('Avg Pain',
+                          _insights!.avgPain.toStringAsFixed(1), '/10'),
+                        _statCard('Avg Nausea',
+                          _insights!.avgNausea.toStringAsFixed(1), '/10'),
+                        _statCard('Aura Episodes',
+                          '${_insights!.auraCount}', ' times'),
+                        _statCard('Avg Duration',
+                          _insights!.avgTimeElapsed.toStringAsFixed(1), 'h'),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
 
                     // Symptom bars
                     const Text('SYMPTOM BREAKDOWN',

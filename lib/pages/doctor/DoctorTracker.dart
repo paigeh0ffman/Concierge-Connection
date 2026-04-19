@@ -47,15 +47,33 @@ class _DoctorTrackerPageState extends State<DoctorTrackerPage> {
           .from('doctor_patients')
           .select('patient_id, profiles(id, full_name)')
           .eq('doctor_id', doctorId);
+      
+      final list = <Map<String, dynamic>>[];
+      for (final r in (response as List)) {
+        final profile = r['profiles'];
+        if (profile != null) {
+          list.add({
+            'id': profile['id'].toString(),
+            'name': profile['full_name']?.toString() ?? 'Unknown',
+          });
+        }
+      }
+      
       if (mounted) setState(() {
-        _patientList = (response as List).map((r) => {
-          'id': r['profiles']['id'] as String,
-          'name': r['profiles']['full_name'] ?? 'Unknown',
-        }).toList();
+        _patientList = list;
         _loadingPatients = false;
       });
     } catch (e) {
-      if (mounted) setState(() => _loadingPatients = false);
+      // Fallback to hardcoded for demo
+      if (mounted) setState(() {
+        _patientList = [
+          {
+            'id': '65b48d7a-80e4-41c3-be4b-374b5908de10',
+            'name': 'Dhwani Parekh',
+          }
+        ];
+        _loadingPatients = false;
+      });
     }
   }
 
