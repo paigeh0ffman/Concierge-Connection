@@ -8,6 +8,7 @@ import 'package:concierge_app/widgets/NavBar.dart';
 import 'package:concierge_app/pages/doctor/DoctorHomePage.dart';
 import 'package:concierge_app/pages/doctor/DoctorChat.dart';
 import 'package:concierge_app/services/insights.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class DoctorTrackerPage extends StatefulWidget {
   const DoctorTrackerPage({super.key});
@@ -266,6 +267,112 @@ class _DoctorTrackerPageState extends State<DoctorTrackerPage> {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // ── Chart ─────────────────────────────────────────
+_label('PAIN TREND'),
+const SizedBox(height: 8),
+Container(
+  height: 200,
+  padding: const EdgeInsets.all(16),
+  decoration: BoxDecoration(
+    color: _card,
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(color: _border)),
+  child: LineChart(
+    LineChartData(
+      gridData: FlGridData(
+        show: true,
+        getDrawingHorizontalLine: (v) => FlLine(
+          color: _border, strokeWidth: 1),
+        getDrawingVerticalLine: (v) => FlLine(
+          color: _border, strokeWidth: 1),
+      ),
+      titlesData: FlTitlesData(
+        leftTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            reservedSize: 28,
+            getTitlesWidget: (v, _) => Text(
+              v.toInt().toString(),
+              style: const TextStyle(
+                color: _textMuted, fontSize: 10)),
+          ),
+        ),
+        bottomTitles: AxisTitles(
+          sideTitles: SideTitles(
+            showTitles: true,
+            reservedSize: 24,
+            getTitlesWidget: (v, _) {
+              final i = v.toInt();
+              if (i < 0 || i >= _patientLogs.length) {
+                return const Text('');
+              }
+              final date = _patientLogs[i]['date'] as String;
+              final parts = date.split('-');
+              return Text(
+                '${parts[1]}/${parts[2]}',
+                style: const TextStyle(
+                  color: _textMuted, fontSize: 9));
+            },
+          ),
+        ),
+        rightTitles: AxisTitles(
+          sideTitles: SideTitles(showTitles: false)),
+        topTitles: AxisTitles(
+          sideTitles: SideTitles(showTitles: false)),
+      ),
+      borderData: FlBorderData(show: false),
+      minY: 0,
+      maxY: 10,
+      lineBarsData: [
+        LineChartBarData(
+          spots: _patientLogs.asMap().entries.map((e) =>
+            FlSpot(e.key.toDouble(),
+              ((e.value['pain'] as num?)?.toDouble() ?? 0))
+          ).toList(),
+          isCurved: true,
+          color: _red,
+          barWidth: 2,
+          dotData: FlDotData(show: true),
+          belowBarData: BarAreaData(
+            show: true,
+            color: _red.withOpacity(0.1)),
+        ),
+        LineChartBarData(
+          spots: _patientLogs.asMap().entries.map((e) =>
+            FlSpot(e.key.toDouble(),
+              ((e.value['nausea'] as num?)?.toDouble() ?? 0))
+          ).toList(),
+          isCurved: true,
+          color: _amber,
+          barWidth: 2,
+          dotData: FlDotData(show: true),
+          belowBarData: BarAreaData(
+            show: true,
+            color: _amber.withOpacity(0.1)),
+        ),
+      ],
+    ),
+  ),
+),
+const SizedBox(height: 8),
+// Legend
+Row(children: [
+  Container(width: 10, height: 10,
+    decoration: BoxDecoration(
+      color: _red, borderRadius: BorderRadius.circular(2))),
+  const SizedBox(width: 4),
+  const Text('Pain', style: TextStyle(
+    color: _textMuted, fontSize: 11)),
+  const SizedBox(width: 16),
+  Container(width: 10, height: 10,
+    decoration: BoxDecoration(
+      color: _amber, borderRadius: BorderRadius.circular(2))),
+  const SizedBox(width: 4),
+  const Text('Nausea', style: TextStyle(
+    color: _textMuted, fontSize: 11)),
+]),
+const SizedBox(height: 16),
 
               // Stat row
               Row(children: [
