@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'pages/LoginPage.dart';
-import 'pages/patient/PatientTracker.dart'; //Debug
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
