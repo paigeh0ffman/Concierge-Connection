@@ -235,7 +235,7 @@ The average US doctor visit costs $300+. Concierge Connection targets the visits
 |---|---|---|
 | **Dhwani** | Data & AI lead | Python, SQL, Scikit-learn, Tableau, Dart |
 | **Paige** | Frontend lead | Flutter, React, Python, Java |
-| **Saikal** | Design & backend | Figma, Python, Java |
+| **Saikal** | Design | Figma, Python, Java |
 | **Faraz** | Security lead | Cybersecurity, auth, privacy |
 
 **Hackathon:** HackAugie
